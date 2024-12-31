@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Image Resizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #4158d0, #c850c0);
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .upload-box {
+            border: 2px dashed #4158d0;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            background: rgba(65, 88, 208, 0.05);
+        }
+
+        .file-list {
+            margin: 1rem 0;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .file-item {
+            background: #f5f5f5;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .dimensions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus {
+            border-color: #4158d0;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #4158d0, #c850c0);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .dimensions {
+                flex-direction: column;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Resizer by SuK</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" name="images" accept="image/*" multiple style="display: none">
+                <p>Click to upload images</p>
+                <p style="font-size: 0.9rem; color: #888;">Supports multiple files: JPG, PNG, GIF</p>
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <div class="dimensions">
+                <div class="input-group">
+                    <label for="width">Width (px)</label>
+                    <input type="number" id="width" name="width" placeholder="Enter width" required>
+                </div>
+                <div class="input-group">
+                    <label for="height">Height (px)</label>
+                    <input type="number" id="height" name="height" placeholder="Enter height" required>
+                </div>
+            </div>
+
+            <button type="submit" id="resizeBtn">Resize Images</button>
+        </form>
+
+        <div class="loading" id="loading">
+            Processing images... Please wait.
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const uploadForm = document.getElementById('uploadForm');
+        const resizeBtn = document.getElementById('resizeBtn');
+        const loading = document.getElementById('loading');
+
+        fileInput.addEventListener('change', function() {
+            fileList.innerHTML = '';
+            for(let file of this.files) {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.textContent = file.name;
+                fileList.appendChild(fileItem);
+            }
+            resizeBtn.disabled = this.files.length === 0;
+        });
+
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+
+            loading.style.display = 'block';
+            resizeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/resize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Create a temporary link to download the file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'resized_images.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Error processing images. Please try again.');
+                }
+            } catch (error) {
+                alert('Error uploading files. Please try again.');
+                console.error('Error:', error);
+            } finally {
+                loading.style.display = 'none';
+                resizeBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
